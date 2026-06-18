@@ -1,0 +1,502 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "NexusCommerce API",
+    "description": "API RESTful avanzada de comercio electrónico para portafolio. Aplica principios SOLID, inyección de dependencias, transacciones de base de datos, colas asíncronas de trabajo y almacenamiento en caché mediante el patrón Decorator.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Servidor Relativo"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "SanctumToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Ingresa el token de acceso obtenido del login o registro (e.g., `1|abcdef...`)."
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "John Doe" },
+          "email": { "type": "string", "example": "john@example.com" },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-06-17T19:30:00Z" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "name": { "type": "string", "example": "Smartphone Quantum X" },
+          "slug": { "type": "string", "example": "smartphone-quantum-x" },
+          "description": { "type": "string", "example": "Un smartphone potente con pantalla AMOLED..." },
+          "price": { "type": "number", "format": "float", "example": 799.99 },
+          "stock": { "type": "integer", "example": 15 },
+          "category": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer", "example": 1 },
+              "name": { "type": "string", "example": "Electronics" },
+              "slug": { "type": "string", "example": "electronics" }
+            }
+          },
+          "reviews_avg_rating": { "type": "number", "format": "float", "example": 4.5 },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-06-17T19:30:00Z" }
+        }
+      },
+      "CartItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "quantity": { "type": "integer", "example": 2 },
+          "product": { "$ref": "#/components/schemas/Product" },
+          "subtotal": { "type": "number", "format": "float", "example": 1599.98 },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-06-17T19:30:00Z" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "status": { "type": "string", "example": "paid" },
+          "total_amount": { "type": "number", "format": "float", "example": 1599.98 },
+          "billing_address": { "type": "string", "example": "123 Main St, NY" },
+          "payment_id": { "type": "string", "example": "ch_stripe_60cbf066e4a2c" },
+          "payment_gateway": { "type": "string", "example": "stripe" },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer", "example": 1 },
+                "product": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "integer", "example": 1 },
+                    "name": { "type": "string", "example": "Smartphone Quantum X" },
+                    "slug": { "type": "string", "example": "smartphone-quantum-x" }
+                  }
+                },
+                "quantity": { "type": "integer", "example": 2 },
+                "price": { "type": "number", "format": "float", "example": 799.99 },
+                "subtotal": { "type": "number", "format": "float", "example": 1599.98 }
+              }
+            }
+          },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-06-17T19:30:00Z" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Registrar nuevo usuario",
+        "description": "Registra una cuenta de cliente y devuelve su token Sanctum.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": { "type": "string", "example": "John Doe" },
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" },
+                  "password": { "type": "string", "format": "password", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario creado exitosamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": { "$ref": "#/components/schemas/User" },
+                    "access_token": { "type": "string", "example": "1|abcdf1234..." },
+                    "token_type": { "type": "string", "example": "Bearer" }
+                  }
+                }
+              }
+            }
+          },
+          "422": { "description": "Error de validación (e.g. correo duplicado, contraseña muy corta)." }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Autenticación de usuario (Login)",
+        "description": "Valida credenciales y genera un nuevo token Sanctum de acceso.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" },
+                  "password": { "type": "string", "format": "password", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticación exitosa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": { "$ref": "#/components/schemas/User" },
+                    "access_token": { "type": "string", "example": "2|xyz98765..." },
+                    "token_type": { "type": "string", "example": "Bearer" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Credenciales inválidas." }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Cerrar sesión (Logout)",
+        "description": "Revoca el token Sanctum utilizado en la petición actual.",
+        "security": [{ "SanctumToken": [] }],
+        "responses": {
+          "200": {
+            "description": "Sesión cerrada correctamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Sesión cerrada correctamente." }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado (Token faltante o inválido)." }
+        }
+      }
+    },
+    "/user": {
+      "get": {
+        "summary": "Obtener perfil del usuario autenticado",
+        "security": [{ "SanctumToken": [] }],
+        "responses": {
+          "200": {
+            "description": "Perfil obtenido.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/User" }
+              }
+            }
+          },
+          "401": { "description": "No autorizado." }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "summary": "Listar catálogo de productos (Optimizado con Caché)",
+        "description": "Obtiene la lista de productos paginada. Soporta filtros de búsqueda, categoría, precio y stock. Los resultados son almacenados en caché para un rendimiento óptimo.",
+        "parameters": [
+          { "name": "category", "in": "query", "description": "Slug de la categoría (e.g. `electronics`)", "required": false, "schema": { "type": "string" } },
+          { "name": "search", "in": "query", "description": "Término de búsqueda", "required": false, "schema": { "type": "string" } },
+          { "name": "min_price", "in": "query", "description": "Precio mínimo", "required": false, "schema": { "type": "number" } },
+          { "name": "max_price", "in": "query", "description": "Precio máximo", "required": false, "schema": { "type": "number" } },
+          { "name": "in_stock", "in": "query", "description": "Filtrar solo con stock (true/false)", "required": false, "schema": { "type": "boolean" } },
+          { "name": "sort_by", "in": "query", "description": "Campo a ordenar (`price`, `created_at`, `name`)", "required": false, "schema": { "type": "string" } },
+          { "name": "sort_order", "in": "query", "description": "Dirección de orden (`asc`, `desc`)", "required": false, "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "description": "Número de página", "required": false, "schema": { "type": "integer", "default": 1 } },
+          { "name": "per_page", "in": "query", "description": "Elementos por página", "required": false, "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Catálogo de productos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Product" }
+                    },
+                    "links": { "type": "object" },
+                    "meta": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "summary": "Obtener detalle de un producto (Caché)",
+        "description": "Obtiene la ficha de un producto. Utiliza almacenamiento en caché transparente.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "ID del producto", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalle del producto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Producto no encontrado." }
+        }
+      }
+    },
+    "/cart": {
+      "get": {
+        "summary": "Listar productos del carrito",
+        "security": [{ "SanctumToken": [] }],
+        "responses": {
+          "200": {
+            "description": "Productos en el carrito de compras.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CartItem" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado." }
+        }
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "summary": "Agregar producto al carrito",
+        "description": "Añade un producto al carrito, acumulando la cantidad si ya existe.",
+        "security": [{ "SanctumToken": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["product_id", "quantity"],
+                "properties": {
+                  "product_id": { "type": "integer", "example": 1 },
+                  "quantity": { "type": "integer", "minimum": 1, "example": 2 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Producto agregado con éxito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Producto agregado al carrito." },
+                    "data": { "$ref": "#/components/schemas/CartItem" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado." },
+          "422": { "description": "Error en validación de parámetros o el producto no existe." }
+        }
+      }
+    },
+    "/cart/items/{id}": {
+      "put": {
+        "summary": "Actualizar cantidad del artículo del carrito",
+        "security": [{ "SanctumToken": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "ID del artículo en el carrito (`cart_item_id`)", "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": {
+                  "quantity": { "type": "integer", "minimum": 1, "example": 5 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cantidad actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Cantidad del artículo actualizada." }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado." },
+          "404": { "description": "El artículo no existe o no pertenece al usuario." }
+        }
+      },
+      "delete": {
+        "summary": "Remover artículo del carrito",
+        "security": [{ "SanctumToken": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "ID del artículo en el carrito", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Producto removido exitosamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Producto eliminado del carrito." }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado." },
+          "404": { "description": "El artículo no existe o no pertenece al usuario." }
+        }
+      }
+    },
+    "/orders/checkout": {
+      "post": {
+        "summary": "Procesar Checkout y Pago (Transaccional, SOLID)",
+        "description": "Procesa la compra de todos los artículos en el carrito del usuario. Valida el inventario, carga el cobro simulado a la pasarela (Stripe o PayPal), crea el pedido, decrementa el stock, limpia el carrito y encola un correo de confirmación de forma asíncrona. Todo bajo una transacción SQL.",
+        "security": [{ "SanctumToken": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["billing_address", "payment_method"],
+                "properties": {
+                  "billing_address": { "type": "string", "example": "123 Main St, NY" },
+                  "payment_method": { "type": "string", "description": "Método de pago. Usar `stripe_fail_method` o `paypal_fail_method` para simular fallos y comprobar el rollback transaccional.", "example": "stripe_card" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pedido completado exitosamente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Compra realizada exitosamente." },
+                    "order": { "$ref": "#/components/schemas/Order" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Carrito vacío." },
+          "401": { "description": "No autorizado." },
+          "402": { "description": "Fallo en pasarela de pago (los cambios son revertidos automáticamente)." },
+          "422": { "description": "Validación fallida o falta de stock del producto." }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "summary": "Listar historial de pedidos del usuario",
+        "security": [{ "SanctumToken": [] }],
+        "responses": {
+          "200": {
+            "description": "Listado de pedidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Order" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado." }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "summary": "Ver detalles de un pedido específico",
+        "security": [{ "SanctumToken": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "description": "ID del pedido", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalles del pedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "$ref": "#/components/schemas/Order" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "No autorizado." },
+          "404": { "description": "Pedido no encontrado o no pertenece al usuario." }
+        }
+      }
+    }
+  }
+}
