@@ -60,7 +60,10 @@ final class ApiExceptionHandler
                 return null;
             }
 
-            return self::errorResponse('La URL solicitada no existe.', 404);
+            return self::errorResponse('La URL solicitada no existe.', 404, [
+                'path' => $request->path(),
+                'request_uri' => $request->getRequestUri(),
+            ]);
         });
 
         $exceptions->render(function (MethodNotAllowedHttpException $e, Request $request) {
@@ -127,7 +130,10 @@ final class ApiExceptionHandler
 
     private static function shouldRenderJson(Request $request): bool
     {
-        return $request->is('api/*') || $request->expectsJson();
+        $forceJsonValue = getenv('FORCE_JSON_RESPONSE') ?: ($_ENV['FORCE_JSON_RESPONSE'] ?? false);
+        $forceJson = filter_var($forceJsonValue, FILTER_VALIDATE_BOOLEAN);
+
+        return $forceJson || $request->is('api/*') || $request->expectsJson();
     }
 
     private static function errorResponse(string $message, int $status, mixed $errors = null): JsonResponse

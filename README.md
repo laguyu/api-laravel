@@ -178,32 +178,15 @@ Este proyecto está preconfigurado para ser desplegado en **Vercel** usando el r
    * `DB_USERNAME`: Usuario de la base de datos.
    * `DB_PASSWORD`: Contraseña de la base de datos.
    * `MYSQL_ATTR_SSL_CA`: (Si tu clúster de TiDB requiere conexión segura SSL, puedes configurar los certificados o habilitar SSL en la configuración de Laravel).
+   * `AUTO_DB_BOOTSTRAP`: `true` (opcional, recomendado solo para el primer deploy si la base de datos remota esta vacia; ejecuta `migrate` y `db:seed` automaticamente una vez cuando detecta ausencia de tablas o usuarios).
 5. Haz clic en **Deploy**. ¡Tu API conectada a TiDB estará en línea!
 
+### Inicializacion automatica de base de datos remota (opcional)
+Si tu base de datos MySQL/TiDB esta creada pero vacia, puedes usar el bootstrap automatico:
+1. Define `AUTO_DB_BOOTSTRAP=true` en Vercel.
+2. Ejecuta un deploy.
+3. Realiza una peticion a la API (por ejemplo `/api/v1/products`) para disparar el arranque serverless.
+4. Verifica que ya existan tablas y datos semilla.
+5. Cambia `AUTO_DB_BOOTSTRAP=false` (o elimina la variable) para evitar comprobaciones innecesarias en cada arranque.
+
 ---
-
-## 🐙 Cómo Subir a GitHub
-
-Si deseas subir este proyecto a un nuevo repositorio de GitHub:
-
-1. Crea un repositorio vacío en tu cuenta de GitHub (no agregues README, ni .gitignore, ni licencia).
-2. Abre la consola en este directorio local y ejecuta:
-   ```bash
-   # Inicializar git
-   git init
-
-   # Agregar todos los archivos (el .gitignore omitirá el vendor y el .env)
-   git add .
-
-   # Crear commit inicial
-   git commit -m "feat: implementacion inicial NexusCommerce API con SOLID y optimizaciones"
-
-   # Renombrar rama principal
-   git branch -M main
-
-   # Vincular tu repositorio remoto (reemplaza con tu URL)
-   git remote add origin https://github.com/tu-usuario/nombre-del-repositorio.git
-
-   # Subir cambios
-   git push -u origin main
-   ```

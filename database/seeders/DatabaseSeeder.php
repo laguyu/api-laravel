@@ -17,16 +17,18 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // 1. Create Test User
-        $user = User::factory()->create([
-            'name' => 'John Doe',
+        $user = User::firstOrCreate([
             'email' => 'john@example.com',
+        ], [
+            'name' => 'John Doe',
             'password' => bcrypt('password123'),
         ]);
 
         // Create an additional user to write reviews
-        $otherUser = User::factory()->create([
-            'name' => 'Alice Smith',
+        $otherUser = User::firstOrCreate([
             'email' => 'alice@example.com',
+        ], [
+            'name' => 'Alice Smith',
             'password' => bcrypt('password123'),
         ]);
 
